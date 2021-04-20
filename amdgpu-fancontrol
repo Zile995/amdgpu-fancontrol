@@ -1,6 +1,6 @@
 #!/bin/bash
 
-HYSTERESIS=6000   # in mK
+HYSTERESIS=5000   # in mK
 SLEEP_INTERVAL=1  # in s
 DEBUG=true
 
@@ -103,7 +103,7 @@ function interpolate_pwm {
 
 function reset_on_exit {
   echo "exiting, resetting fan to auto control..."
-  set_fanmode 2
+  set_fanmode 1
   exit 0
 }
 
