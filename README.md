@@ -6,16 +6,17 @@ This script was initially meant as an example. **Please don't just run it naivel
 
 ## Installation
 
-* Run the ```install_fancontrol.sh``` script inside the repository folder.
+* Install ```bc``` package:
+  * Arch
     ```
-    sudo ./install_fancontrol.sh
+    sudo pacman -S bc
     ```
+  * Ubuntu
+    ```
+    sudo apt install bc
+    ``` 
 
-* Please verify that the fancontrol script is running after system startup or hybernation with ```systemctl status amdgpu-fancontrol```
-
-![Screenshot_20210420_124356](https://user-images.githubusercontent.com/32335484/115383416-19089c00-a1d6-11eb-95ca-5fa5b49a9bd1.png)
-
-* Also don't forget to [append](https://wiki.archlinux.org/index.php/Kernel_parameters#Configuration) ```amdgpu.ppfeaturemask=0xffffffff``` kernel parameter. If you are using GRUB change the /etc/default/grub :
+* Don't forget to [append](https://wiki.archlinux.org/index.php/Kernel_parameters#Configuration) ```amdgpu.ppfeaturemask=0xffffffff``` kernel parameter. If you are using GRUB change the /etc/default/grub :
 
   ```
   GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet amdgpu.ppfeaturemask=0xffffffff"
@@ -26,6 +27,21 @@ This script was initially meant as an example. **Please don't just run it naivel
   sudo grub-mkconfig -o /boot/grub/grub.cfg 
   ```
 
+* Run the ```install-fancontrol.sh``` script inside the repository folder.
+    ```
+    sudo ./install-fancontrol.sh
+    ```
+
+* Please verify that the fancontrol script is running after system startup or hybernation with ```systemctl status amdgpu-fancontrol```
+![Screenshot from 2021-08-20 18-18-03](https://user-images.githubusercontent.com/32335484/130263510-dd0f89e7-f2fd-4320-bc3c-2568014c2409.png)
+  
+## How to uninstall fancontrol?
+
+* Run the ```uninstall-fancontrol.sh``` script inside the repository folder.
+    ```
+    sudo ./uninstall-fancontrol.sh
+    ```
+
 ## Packages
 
-- Arch Linux (on AUR): https://aur.archlinux.org/packages/amdgpu-fancontrol-git/
+- Arch Linux (on AUR) without config modification: https://aur.archlinux.org/packages/amdgpu-fancontrol-git/
