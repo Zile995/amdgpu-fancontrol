@@ -1,5 +1,7 @@
 [Unit]
 Description=amdgpu-fancontrol
+StartLimitIntervalSec=10
+StartLimitBurst=3
 
 [Service]
 Type=simple
