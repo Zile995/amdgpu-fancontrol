@@ -16,17 +16,6 @@ This script was initially meant as an example. **Please don't just run it naivel
     sudo apt install bc
     ``` 
 
-* Don't forget to [append](https://wiki.archlinux.org/index.php/Kernel_parameters#Configuration) ```amdgpu.ppfeaturemask=0xffffffff``` kernel parameter. If you are using GRUB change the /etc/default/grub :
-
-  ```
-  GRUB_CMDLINE_LINUX_DEFAULT="loglevel=3 quiet amdgpu.ppfeaturemask=0xffffffff"
-  ```
-
-* Update the GRUB configuration and reboot:
-  ```
-  sudo grub-mkconfig -o /boot/grub/grub.cfg 
-  ```
-
 * Run the ```install-fancontrol.sh``` script inside the repository folder.
     ```
     sudo ./install-fancontrol.sh
@@ -45,3 +34,4 @@ This script was initially meant as an example. **Please don't just run it naivel
 ## Packages
 
 - Arch Linux (on AUR) without config modification: https://aur.archlinux.org/packages/amdgpu-fancontrol-git/
+
