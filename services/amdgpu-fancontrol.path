@@ -1,0 +1,5 @@
+[Path]
+PathExistsGlob=/sys/class/drm/card*/device/hwmon/hwmon?/pwm1
+
+[Install]
+WantedBy=default.target

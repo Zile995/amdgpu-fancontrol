@@ -1,8 +1,8 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 HYSTERESIS=5000   # in mK
 SLEEP_INTERVAL=1  # in s
-DEBUG=true
+DEBUG=false
 
 # set temps (in degrees C * 1000) and corresponding pwm values in ascending order and with the same amount of values
 TEMPS=( 65000 80000 90000 )
@@ -13,64 +13,62 @@ FILE_PWM=$(echo /sys/class/drm/card?/device/hwmon/hwmon?/pwm1)
 FILE_FANMODE=$(echo /sys/class/drm/card?/device/hwmon/hwmon?/pwm1_enable)
 FILE_TEMP=$(echo /sys/class/drm/card?/device/hwmon/hwmon?/temp1_input)
 
-# load configuration file if present
-[ -f /etc/amdgpu-fancontrol.cfg ] && . /etc/amdgpu-fancontrol.cfg
+check() {
+  # checking for privileges
+  (( ! $EUID )) || {
+    echo "Writing to sysfs requires privileges, relaunch as root"
+    exit 1
+  }
 
-[[ -f "$FILE_PWM" && -f "$FILE_FANMODE" && -f "$FILE_TEMP" ]] || { echo "invalid hwmon files" ; exit 1; }
+  # load configuration file if present
+  [[ -f /etc/${0##*/}.cfg ]] && . "/etc/${0##*/}.cfg"
 
-# check if amount of temps and pwm values match
-if [ "${#TEMPS[@]}" -ne "${#PWMS[@]}" ]
-then
-  echo "Amount of temperature and pwm values does not match"
-  exit 1
-fi
+  [[ -f "$FILE_PWM" && -f "$FILE_FANMODE" && -f "$FILE_TEMP" ]] || { echo "Invalid hwmon files" ; exit 1; }
 
-# checking for privileges
-if [ $UID -ne 0 ]
-then
-  echo "Writing to sysfs requires privileges, relaunch as root"
-  exit 1
-fi
+  # check if amount of temps and pwm values match
+  [[ ${#TEMPS[@]} -eq ${#PWMS[@]} ]] || {
+    echo "Amount of temperature and pwm values does not match"
+    exit 1
+  }
+}
 
-function debug {
-  if $DEBUG; then
-    echo $1
-  fi
+debug() {
+  (( ! $DEBUG )) || echo $1
 }
 
 # set fan mode to max(0), manual(1) or auto(2)
-function set_fanmode {
-  echo "setting fan mode to $1"
-  echo "$1" > "$FILE_FANMODE"
+set_fanmode() {
+  echo "Setting fan mode to $1"
+  local current_value="$(<$FILE_FANMODE)"
+  (( $current_value == $1 )) || echo "$1" > "$FILE_FANMODE"
 }
 
-function set_pwm {
+set_pwm() {
   NEW_PWM=$1
-  OLD_PWM=$(cat $FILE_PWM)
+  OLD_PWM="$(<$FILE_PWM)"
 
-  debug "current pwm: $OLD_PWM, requested to set pwm to $NEW_PWM"
-  if [ $(cat ${FILE_FANMODE}) -ne 1 ]
-  then
-    echo "Fanmode not set to manual."
+  debug "Current pwm: $OLD_PWM, requested to set pwm to $NEW_PWM"
+  if [[ $(cat ${FILE_FANMODE}) -ne 1 ]]; then
+    echo "Fanmode not set to manual"
     set_fanmode 1
   fi
 
-  if [ -z "$TEMP_AT_LAST_PWM_CHANGE" ] || [ "$TEMP" -gt "$TEMP_AT_LAST_PWM_CHANGE" ] || [ $(($(cat $FILE_TEMP) + HYSTERESIS)) -le "$TEMP_AT_LAST_PWM_CHANGE" ]; then
-    $DEBUG || echo "current temp: $TEMP"
-    echo "temp at last change was $TEMP_AT_LAST_PWM_CHANGE"
-    echo "changing pwm to $NEW_PWM"
+  if [ -z "$TEMP_AT_LAST_PWM_CHANGE" ] || [ "$TEMP" -gt "$TEMP_AT_LAST_PWM_CHANGE" ] || [ $(($(cat "$FILE_TEMP") + HYSTERESIS)) -le "$TEMP_AT_LAST_PWM_CHANGE" ]; then
+    $DEBUG || echo "Current temp: $TEMP"
+    echo "Temp at last change was $TEMP_AT_LAST_PWM_CHANGE"
+    echo "Changing pwm to $NEW_PWM"
     echo "$NEW_PWM" > "$FILE_PWM"
-    TEMP_AT_LAST_PWM_CHANGE=$(cat $FILE_TEMP)
+    TEMP_AT_LAST_PWM_CHANGE="$(<$FILE_TEMP)"
   else
-    debug "not changing pwm, we just did at $TEMP_AT_LAST_PWM_CHANGE, next change when below $((TEMP_AT_LAST_PWM_CHANGE - HYSTERESIS))"
+    debug "Not changing pwm, we just did at $TEMP_AT_LAST_PWM_CHANGE, next change when below $((TEMP_AT_LAST_PWM_CHANGE - HYSTERESIS))"
   fi
 }
 
-function interpolate_pwm {
+interpolate_pwm() {
   i=0
-  TEMP=$(cat $FILE_TEMP)
+  TEMP="$(<$FILE_TEMP)"
 
-  debug "current temp: $TEMP"
+  debug "Current temp: $TEMP"
 
   if [[ $TEMP -le ${TEMPS[0]} ]]; then
     # below first point in list, set to min speed
@@ -93,22 +91,26 @@ function interpolate_pwm {
     LOWERPWM=${PWMS[i-1]}
     HIGHERPWM=${PWMS[i]}
     PWM=$(echo "( ( $TEMP - $LOWERTEMP ) * ( $HIGHERPWM - $LOWERPWM ) / ( $HIGHERTEMP - $LOWERTEMP ) ) + $LOWERPWM" | bc)
-    debug "interpolated pwm value for temperature $TEMP is: $PWM"
+    debug "Interpolated pwm value for temperature $TEMP is: $PWM"
     set_pwm "$PWM"
     return
   done
 }
 
-function reset_on_exit {
-  echo "exiting, resetting fan to auto control..."
-  set_fanmode 1
+reset_on_exit() {
+  echo "Exiting, setting the fallback fan mode..."
+  set_fanmode "${FALLBACK_FANMODE:-2}"
   exit 0
 }
 
 # always try to reset fans on exit
 trap "reset_on_exit" SIGINT SIGTERM
 
-function run_daemon {
+run_daemon() {
+  # set fan control to manual
+  set_fanmode 1
+
+  # start the loop
   while :; do
     interpolate_pwm
     debug
@@ -116,9 +118,9 @@ function run_daemon {
   done
 }
 
-# set fan control to manual
-set_fanmode 1
+# check for privileges
+# check the config files
+check
 
-# finally start the loop
+# run the daemon
 run_daemon
-
